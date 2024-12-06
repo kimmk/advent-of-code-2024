@@ -1,5 +1,9 @@
 use std::collections::HashSet;
 
+const DEBUG_PAUSE:      bool = true;
+const DEBUG_MAP:        bool = true;
+const DEBUG_OBSTACLE:   bool = false;
+
 #[derive(Copy, Clone, Debug, Hash, Eq, PartialEq)]
 enum GuardDir {
     Up,
@@ -112,8 +116,15 @@ fn print_map(
 ) {
     for (y, row) in map.map.iter().enumerate() {
         for (x, tile) in row.iter().enumerate() {
-            if tile.obstacle { print!("Q"); }
-            else if (x as i32, y as i32) == map.guard_pos { print!("^"); }
+            if DEBUG_OBSTACLE && tile.obstacle { print!("Q"); continue; }
+            if (x as i32, y as i32) == map.guard_pos { print!("^"); }
+            else if tile.visited_dirs.len() > 0 {
+                if tile.visited_dirs.len() > 1 { print!("+"); }
+                else if tile.visited_dirs.contains(&GuardDir::Up) { print!("^"); }
+                else if tile.visited_dirs.contains(&GuardDir::Right) { print!(">"); }
+                else if tile.visited_dirs.contains(&GuardDir::Down) { print!("v"); }
+                else if tile.visited_dirs.contains(&GuardDir::Left) { print!("<"); }
+            }
             else if tile.is_wall { print!("#"); }
             else if tile.visited { print!("x"); }
             else { print!("."); }
@@ -125,20 +136,33 @@ fn print_map(
 fn map_check_loop(
     mut map: GuardMap,
 ) -> bool {
+
+    if DEBUG_PAUSE { println!("Exploring loop"); }
     while let Some(new_pos) = next_pos(&map, map.guard_dir, map.guard_pos) {
         if map.ref_tile(new_pos).is_wall {
             map.guard_dir = turn_guard(map.guard_dir);
             let copy_dir = map.guard_dir.clone();
-            map.ref_tile(new_pos).visited_dirs.insert(copy_dir);
+            map.ref_tile(map.guard_pos).visited_dirs.insert(copy_dir);
             continue;
         }
         let copy_dir = map.guard_dir.clone();
         if map.ref_tile(new_pos).visited_dirs.contains(&copy_dir) {
-             return true;
+            if DEBUG_PAUSE {
+                println!("Found loop!");
+                let mut input = String::new();
+                std::io::stdin().read_line(&mut input).unwrap();
+            }
+            return true;
         }
         map.guard_pos = new_pos;
         let copy_dir = map.guard_dir.clone();
         map.ref_tile(new_pos).visited_dirs.insert(copy_dir);
+        if DEBUG_PAUSE {
+            print_map(&map);
+            println!();
+            let mut input = String::new();
+            std::io::stdin().read_line(&mut input).unwrap();
+        }
     }
     return false;
 }
@@ -149,11 +173,20 @@ fn main() {
     let mut map = generate_map(&map_lines);
     let mut visited_count = 1;
     let mut loop_count = 0;
+    let mut step = 0;
     while let Some(new_pos) = next_pos(&map, map.guard_dir, map.guard_pos) {
+        if DEBUG_MAP {
+            println!("map at step {}", step);
+            print_map(&map);
+            println!();
+            let mut input = String::new();
+            std::io::stdin().read_line(&mut input).unwrap();
+            step += 1;
+        }
         if map.ref_tile(new_pos).is_wall {
             map.guard_dir = turn_guard(map.guard_dir);
             let copy_dir = map.guard_dir.clone();
-            map.ref_tile(new_pos).visited_dirs.insert(copy_dir);
+            map.ref_tile(map.guard_pos).visited_dirs.insert(copy_dir);
             continue;
         }
         if !map.ref_tile(new_pos).visited {
@@ -171,8 +204,6 @@ fn main() {
         map.guard_pos = new_pos;
         let copy_dir = map.guard_dir.clone();
         map.ref_tile(new_pos).visited_dirs.insert(copy_dir);
-        print_map(&map);
-        println!();
     }
     println!("visited tiles: {}", visited_count);
     println!("loop count: {}", loop_count);

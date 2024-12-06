@@ -8,7 +8,7 @@ enum GuardDir {
     Left,
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 struct Tile {
     is_wall: bool,
     visited: bool,
@@ -31,6 +31,7 @@ fn turn_guard(
     }
 }
 
+#[derive(Clone)]
 struct GuardMap {
     map: TileMap,
     guard_pos: (i32, i32),
@@ -108,13 +109,11 @@ fn generate_map(
 
 fn print_map(
     map: &GuardMap,
-    raycast: &Vec<(i32,i32)>,
 ) {
     for (y, row) in map.map.iter().enumerate() {
         for (x, tile) in row.iter().enumerate() {
             if tile.obstacle { print!("Q"); }
             else if (x as i32, y as i32) == map.guard_pos { print!("^"); }
-            else if raycast.contains(&(x as i32, y as i32)) { print!("o"); }
             else if tile.is_wall { print!("#"); }
             else if tile.visited { print!("x"); }
             else { print!("."); }
@@ -123,62 +122,56 @@ fn print_map(
     }
 }
 
-fn raycast_guard_tiles(
-    map: &GuardMap,
-    dir: GuardDir,
-) -> Vec<(i32,i32)> {
-    let mut pos = map.guard_pos;
-    let mut tiles = Vec::new();
-    loop {
-        tiles.push(pos);
-        let next_pos = next_pos(map, dir, pos);
-        if next_pos.is_none() {
-            break;
-        }
-        pos = next_pos.unwrap();
-        if map.ref_tile_const(next_pos.unwrap()).is_wall {
-            break;
-        }
-    }
-    return tiles;
-}
-
-fn main() {
-    let input = include_str!("input");
-    let map_lines = input.lines().collect();
-    let mut map = generate_map(&map_lines);
-    let mut visited_count = 1;
-    let mut loop_count = 0;
-    let mut place_obstacle = false;
+fn map_check_loop(
+    mut map: GuardMap,
+) -> bool {
     while let Some(new_pos) = next_pos(&map, map.guard_dir, map.guard_pos) {
         if map.ref_tile(new_pos).is_wall {
             map.guard_dir = turn_guard(map.guard_dir);
             let copy_dir = map.guard_dir.clone();
             map.ref_tile(new_pos).visited_dirs.insert(copy_dir);
-            place_obstacle = false;
             continue;
         }
-        if place_obstacle {
-            loop_count += 1;
-            map.ref_tile(new_pos).obstacle = true;
-            place_obstacle = false;
+        let copy_dir = map.guard_dir.clone();
+        if map.ref_tile(new_pos).visited_dirs.contains(&copy_dir) {
+             return true;
+        }
+        map.guard_pos = new_pos;
+        let copy_dir = map.guard_dir.clone();
+        map.ref_tile(new_pos).visited_dirs.insert(copy_dir);
+    }
+    return false;
+}
+
+fn main() {
+    let input = include_str!("input_trivial");
+    let map_lines = input.lines().collect();
+    let mut map = generate_map(&map_lines);
+    let mut visited_count = 1;
+    let mut loop_count = 0;
+    while let Some(new_pos) = next_pos(&map, map.guard_dir, map.guard_pos) {
+        if map.ref_tile(new_pos).is_wall {
+            map.guard_dir = turn_guard(map.guard_dir);
+            let copy_dir = map.guard_dir.clone();
+            map.ref_tile(new_pos).visited_dirs.insert(copy_dir);
+            continue;
         }
         if !map.ref_tile(new_pos).visited {
             map.ref_tile(new_pos).visited = true;
             visited_count += 1;
         }
+        {
+            let mut obs_map = map.clone();
+            obs_map.ref_tile(new_pos).is_wall = true;
+            if map_check_loop(obs_map) {
+                loop_count += 1;
+                map.ref_tile(new_pos).obstacle = true;
+            }
+        }
         map.guard_pos = new_pos;
         let copy_dir = map.guard_dir.clone();
         map.ref_tile(new_pos).visited_dirs.insert(copy_dir);
-        let raycast_dir = turn_guard(map.guard_dir);
-        let raycast_tiles = raycast_guard_tiles(&map, raycast_dir);
-        for rt in &raycast_tiles {
-            if map.ref_tile(*rt).visited_dirs.contains(&raycast_dir) {
-                place_obstacle = true;
-                break;
-            }
-        }
-        print_map(&map, &raycast_tiles);
+        print_map(&map);
         println!();
     }
     println!("visited tiles: {}", visited_count);

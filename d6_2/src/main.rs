@@ -20,7 +20,6 @@ struct Tile {
     x: i32,
     y: i32,
     obstacle: bool,
-    looped: bool,
 }
 
 type TileMap = Vec<Vec<Tile>>;
@@ -99,7 +98,6 @@ fn generate_map(
                 x: x as i32,
                 y: y as i32,
                 obstacle: false,
-                looped: false,
             };
             if c == '^' {
                 map.guard_pos = (x as i32, y as i32);
@@ -135,52 +133,18 @@ fn print_map(
     }
 }
 
-fn map_check_loop(
+fn map_check(
     mut map: GuardMap,
+    loop_check: bool,
 ) -> bool {
-
-    if DEBUG_PAUSE { println!("Exploring loop"); }
-    let start_pos = map.guard_pos;
-    map.ref_tile(start_pos).looped = true;
-    while let Some(new_pos) = next_pos(&map, map.guard_dir, map.guard_pos) {
-        if map.ref_tile(new_pos).is_wall {
-            map.guard_dir = turn_guard(map.guard_dir);
-            let copy_dir = map.guard_dir.clone();
-            map.ref_tile(map.guard_pos).visited_dirs.insert(copy_dir);
-            continue;
-        }
-        let copy_dir = map.guard_dir.clone();
-        if map.ref_tile(new_pos).looped && map.ref_tile(new_pos).visited_dirs.contains(&copy_dir) {
-            if DEBUG_PAUSE {
-                println!("Found loop!");
-                let mut input = String::new();
-                std::io::stdin().read_line(&mut input).unwrap();
-            }
-            return true;
-        }
-        map.ref_tile(new_pos).looped = true;
-        map.guard_pos = new_pos;
-        let copy_dir = map.guard_dir.clone();
-        map.ref_tile(new_pos).visited_dirs.insert(copy_dir);
-        if DEBUG_PAUSE {
-            print_map(&map);
-            println!();
-            std::thread::sleep(std::time::Duration::from_millis(100));
-        }
-    }
-    return false;
-}
-
-fn main() {
-    let input = include_str!("input");
-    let map_lines = input.lines().collect();
-    let mut map = generate_map(&map_lines);
     let mut visited_count = 1;
     let mut loop_count = 0;
     let mut step = 0;
+    if DEBUG_PAUSE { println!("Exploring loop"); }
+    let orig_map = map.clone();
     let start_pos = map.guard_pos;
     while let Some(new_pos) = next_pos(&map, map.guard_dir, map.guard_pos) {
-        if DEBUG_MAP {
+        if !loop_check && DEBUG_MAP {
             println!("map at step {}", step);
             print_map(&map);
             println!();
@@ -198,20 +162,44 @@ fn main() {
             map.ref_tile(new_pos).visited = true;
             visited_count += 1;
         }
-        if start_pos != new_pos {
-            let mut obs_map = map.clone();
+        if !loop_check && start_pos != new_pos {
+            let mut obs_map = orig_map.clone();
             obs_map.ref_tile(new_pos).is_wall = true;
-            if map_check_loop(obs_map) {
+            if map_check(obs_map, true) {
                 if !map.ref_tile_const(new_pos).obstacle {
                     map.ref_tile(new_pos).obstacle = true;
                     loop_count += 1;
                 }
             }
         }
+        let copy_dir = map.guard_dir.clone();
+        if loop_check && map.ref_tile(new_pos).visited_dirs.contains(&copy_dir) {
+            if DEBUG_PAUSE {
+                println!("Found loop!");
+                let mut input = String::new();
+                std::io::stdin().read_line(&mut input).unwrap();
+            }
+            return true;
+        }
         map.guard_pos = new_pos;
         let copy_dir = map.guard_dir.clone();
         map.ref_tile(new_pos).visited_dirs.insert(copy_dir);
+        if loop_check && DEBUG_PAUSE {
+            print_map(&map);
+            println!();
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        }
     }
-    println!("visited tiles: {}", visited_count);
-    println!("loop count: {}", loop_count);
+    if !loop_check {
+        println!("visited tiles: {}", visited_count);
+        println!("loop count: {}", loop_count);
+    }
+    return false;
+}
+
+fn main() {
+    let input = include_str!("input");
+    let map_lines = input.lines().collect();
+    let map = generate_map(&map_lines);
+    map_check(map, false);
 }

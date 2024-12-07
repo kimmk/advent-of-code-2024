@@ -197,8 +197,10 @@ fn main() {
             let mut obs_map = map.clone();
             obs_map.ref_tile(new_pos).is_wall = true;
             if map_check_loop(obs_map) {
-                loop_count += 1;
-                map.ref_tile(new_pos).obstacle = true;
+                if !map.ref_tile_const(new_pos).obstacle {
+                    map.ref_tile(new_pos).obstacle = true;
+                    loop_count += 1;
+                }
             }
         }
         map.guard_pos = new_pos;

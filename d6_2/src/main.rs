@@ -20,6 +20,7 @@ struct Tile {
     x: i32,
     y: i32,
     obstacle: bool,
+    looped: bool,
 }
 
 type TileMap = Vec<Vec<Tile>>;
@@ -98,6 +99,7 @@ fn generate_map(
                 x: x as i32,
                 y: y as i32,
                 obstacle: false,
+                looped: false,
             };
             if c == '^' {
                 map.guard_pos = (x as i32, y as i32);
@@ -138,6 +140,8 @@ fn map_check_loop(
 ) -> bool {
 
     if DEBUG_PAUSE { println!("Exploring loop"); }
+    let start_pos = map.guard_pos;
+    map.ref_tile(start_pos).looped = true;
     while let Some(new_pos) = next_pos(&map, map.guard_dir, map.guard_pos) {
         if map.ref_tile(new_pos).is_wall {
             map.guard_dir = turn_guard(map.guard_dir);
@@ -146,7 +150,7 @@ fn map_check_loop(
             continue;
         }
         let copy_dir = map.guard_dir.clone();
-        if map.ref_tile(new_pos).visited_dirs.contains(&copy_dir) {
+        if map.ref_tile(new_pos).looped && map.ref_tile(new_pos).visited_dirs.contains(&copy_dir) {
             if DEBUG_PAUSE {
                 println!("Found loop!");
                 let mut input = String::new();
@@ -154,6 +158,7 @@ fn map_check_loop(
             }
             return true;
         }
+        map.ref_tile(new_pos).looped = true;
         map.guard_pos = new_pos;
         let copy_dir = map.guard_dir.clone();
         map.ref_tile(new_pos).visited_dirs.insert(copy_dir);

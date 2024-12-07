@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
-const DEBUG_PAUSE:      bool = true;
-const DEBUG_MAP:        bool = true;
+const DEBUG_PAUSE:      bool = false;
+const DEBUG_MAP:        bool = false;
 const DEBUG_OBSTACLE:   bool = false;
 
 #[derive(Copy, Clone, Debug, Hash, Eq, PartialEq)]
@@ -160,20 +160,20 @@ fn map_check_loop(
         if DEBUG_PAUSE {
             print_map(&map);
             println!();
-            let mut input = String::new();
-            std::io::stdin().read_line(&mut input).unwrap();
+            std::thread::sleep(std::time::Duration::from_millis(100));
         }
     }
     return false;
 }
 
 fn main() {
-    let input = include_str!("input_trivial");
+    let input = include_str!("input");
     let map_lines = input.lines().collect();
     let mut map = generate_map(&map_lines);
     let mut visited_count = 1;
     let mut loop_count = 0;
     let mut step = 0;
+    let start_pos = map.guard_pos;
     while let Some(new_pos) = next_pos(&map, map.guard_dir, map.guard_pos) {
         if DEBUG_MAP {
             println!("map at step {}", step);
@@ -193,7 +193,7 @@ fn main() {
             map.ref_tile(new_pos).visited = true;
             visited_count += 1;
         }
-        {
+        if start_pos != new_pos {
             let mut obs_map = map.clone();
             obs_map.ref_tile(new_pos).is_wall = true;
             if map_check_loop(obs_map) {

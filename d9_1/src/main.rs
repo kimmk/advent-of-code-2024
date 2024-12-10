@@ -36,56 +36,53 @@ fn build_disk(
 
 fn disk_print(
     disk: &Disk,
-) -> String {
-    let mut disk_str = String::new();
+) -> Vec<i32> {
+    let mut disk_vec = vec![];
     for block in &disk.blocks {
-        let mut id = String::from(".");
+        let mut id = -1;
         if block.file {
-            id = block.id.to_string();
+            id = block.id;
         }
-        disk_str = format!("{}{}", disk_str, id.repeat(block.size as usize));
+        disk_vec.extend(vec![id; block.size as usize]);
     }
-    disk_str
+    disk_vec
 }
 
 fn defrag(
-    disk_str: String,
-) -> String {
-    let mut disk = disk_str.as_bytes().to_vec();
+    disk_vec: &Vec<i32>,
+) -> Vec<i32> {
+    let mut disk = disk_vec.clone();
     let mut tail = disk.len()-1;
     let mut head = 0;
     loop {
-        //println!("{}", String::from_utf8(disk.clone()).unwrap());
         if head >= tail || head >= disk.len() {
             break;
         }
-        if disk[head] != b'.' {
+        if disk[head] != -1 {
             head += 1;
             continue;
         }
-        if disk[tail] == b'.' {
+        if disk[tail] == -1 {
             tail -= 1;
             continue;
         }
         disk[head] = disk[tail];
-        disk[tail] = b'.';
+        disk[tail] = -1;
         head += 1;
         tail -= 1;
     }
-    String::from_utf8(disk).unwrap()
+    disk
 }
 
 fn disk_checksum(
-    disk_str: &String
+    disk: &Vec<i32>
 ) -> u64 {
-    let disk = disk_str.as_bytes().to_vec();
     let mut cs = 0;
     for (pos, bt) in disk.iter().enumerate() {
-        if *bt == b'.' {
+        if *bt == -1 {
             continue;
         }
-        let idx = *bt as u8 - b'0';
-        cs += (pos as u64) * (idx as u64);
+        cs += (pos as u64) * (*bt as u64);
     }
     return cs;
 }
@@ -93,9 +90,9 @@ fn disk_checksum(
 fn main() {
     let input = include_str!("input");
     let disk = build_disk(&input[..input.len()-1]);
-    let disk_str = disk_print(&disk);
-    println!("{}", disk_str);
-    let defrag_disk = defrag(disk_str);
-    println!("{}", defrag_disk);
+    let disk_vec = disk_print(&disk);
+    println!("{:?}", disk_vec);
+    let defrag_disk = defrag(&disk_vec);
+    println!("{:?}", defrag_disk);
     println!("checksum: {}", disk_checksum(&defrag_disk));
 }

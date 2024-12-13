@@ -37,14 +37,14 @@ fn find_submat_in_mat(
     for row_i in 0..mat_height-smat_height+1 {
         for col_i in 0..mat_width-smat_width+1 {
             let cmp_mat = mat.iter()
-                     .skip(row_i)
-                     .take(smat_height)
-                     .map(|col| col.iter()
-                                  .skip(col_i)
-                                  .take(smat_width)
-                                  .cloned()
-                                  .collect::<Vec<char>>())
-                     .collect::<Vec<Vec<char>>>();
+                .skip(row_i)
+                .take(smat_height)
+                .map(|col| col.iter()
+                    .skip(col_i)
+                    .take(smat_width)
+                    .cloned()
+                    .collect::<Vec<char>>())
+                .collect::<Vec<Vec<char>>>();
             println!("x {} y {} {:?}", col_i, row_i, cmp_mat);
             if cmp_mats(&cmp_mat, &smat) {
                 count += 1;
